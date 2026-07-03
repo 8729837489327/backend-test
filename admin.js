@@ -3,13 +3,25 @@ let currentConfig = null;
 // Load configuration on page load
 async function loadConfig() {
     try {
+        console.log('Fetching config from /api/config...');
         const response = await fetch('/api/config');
-        currentConfig = await response.json();
+        console.log('Response status:', response.status);
         
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        currentConfig = await response.json();
+        console.log('Config loaded:', currentConfig);
         populateForm(currentConfig);
     } catch (error) {
-        console.error('Failed to load config:', error);
-        currentConfig = getDefaultConfig();
+        console.error('Failed to load config from API, using localStorage:', error);
+        const localConfig = localStorage.getItem('linktreeConfig');
+        if (localConfig) {
+            currentConfig = JSON.parse(localConfig);
+        } else {
+            currentConfig = getDefaultConfig();
+        }
         populateForm(currentConfig);
     }
 }
@@ -89,7 +101,10 @@ async function saveConfig() {
     const config = collectFormData();
     const statusMessage = document.getElementById('statusMessage');
     
+    console.log('Saving config:', config);
+    
     try {
+        console.log('Sending POST request to /api/config...');
         const response = await fetch('/api/config', {
             method: 'POST',
             headers: {
@@ -98,17 +113,21 @@ async function saveConfig() {
             body: JSON.stringify(config)
         });
         
+        console.log('Response status:', response.status);
+        
         if (response.ok) {
             statusMessage.textContent = 'Changes saved successfully!';
             statusMessage.className = 'status-message success';
             currentConfig = config;
         } else {
-            throw new Error('Failed to save config');
+            throw new Error(`Failed to save config: HTTP ${response.status}`);
         }
     } catch (error) {
-        console.error('Failed to save config:', error);
-        statusMessage.textContent = 'Failed to save changes. Please try again.';
-        statusMessage.className = 'status-message error';
+        console.error('Failed to save config to API, using localStorage:', error);
+        localStorage.setItem('linktreeConfig', JSON.stringify(config));
+        statusMessage.textContent = 'Changes saved to localStorage (API failed)';
+        statusMessage.className = 'status-message success';
+        currentConfig = config;
     }
     
     setTimeout(() => {

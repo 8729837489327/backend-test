@@ -1,16 +1,30 @@
 // Load configuration from Cloudflare Workers API
 async function loadConfig() {
     try {
+        console.log('Fetching config from /api/config...');
         const response = await fetch('/api/config');
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const config = await response.json();
+        console.log('Config loaded:', config);
         
         if (config) {
             applyConfig(config);
         }
     } catch (error) {
-        console.error('Failed to load config:', error);
-        // Use default config if API fails
-        applyConfig(getDefaultConfig());
+        console.error('Failed to load config from API, using localStorage:', error);
+        // Try localStorage as fallback for local development
+        const localConfig = localStorage.getItem('linktreeConfig');
+        if (localConfig) {
+            applyConfig(JSON.parse(localConfig));
+        } else {
+            // Use default config if API fails and no localStorage
+            applyConfig(getDefaultConfig());
+        }
     }
 }
 
